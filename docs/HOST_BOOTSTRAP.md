@@ -19,7 +19,7 @@ sudo apt-get install -y git ca-certificates curl build-essential
 This is the fastest bootstrap path. If you prefer Docker CE from Docker’s apt repo, decide that in `docs/DECISIONS.md`.
 
 ```bash
-sudo apt-get install -y docker.io docker-compose-plugin
+sudo apt-get install -y docker.io docker-compose-v2
 sudo usermod -aG docker "$USER"
 ```
 

@@ -18,7 +18,7 @@ apt-get install -y \
 # Container runtime (Ubuntu packages)
 apt-get install -y \
   docker.io \
-  docker-compose-plugin
+  docker-compose-v2
 
 # Optional but useful for early validation
 apt-get install -y \
@@ -29,4 +29,3 @@ usermod -aG docker techadmin || true
 echo
 echo "Installed: git, build-essential, docker.io, docker-compose-plugin, mosquitto-clients"
 echo "Note: re-login (or restart SSH) for docker group membership to apply."
-
