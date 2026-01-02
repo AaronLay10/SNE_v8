@@ -39,6 +39,8 @@ services:
       SCS_OSC_PORT: "${SCS_OSC_PORT}"
       MQTT_HOST: mqtt
       MQTT_PORT: 1883
+      MQTT_USERNAME: "${MQTT_USERNAME}"
+      MQTT_PASSWORD: "${MQTT_PASSWORD}"
     networks:
       - room-net
     restart: unless-stopped
@@ -52,6 +54,8 @@ services:
       ROOM_ID: "${ROOM_ID}"
       MQTT_HOST: mqtt
       MQTT_PORT: 1883
+      MQTT_USERNAME: "${MQTT_USERNAME}"
+      MQTT_PASSWORD: "${MQTT_PASSWORD}"
       DATABASE_URL: "postgres://sentient:${POSTGRES_PASSWORD}@db:5432/sentient"
       DRY_RUN: "${DRY_RUN:-false}"
     depends_on:

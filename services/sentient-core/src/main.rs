@@ -13,6 +13,8 @@ struct Config {
     mqtt_host: String,
     mqtt_port: u16,
     mqtt_client_id: String,
+    mqtt_username: Option<String>,
+    mqtt_password: Option<String>,
     database_url: String,
     dry_run: bool,
     tick_ms: u64,
@@ -28,6 +30,8 @@ impl Config {
             .unwrap_or(1883);
         let mqtt_client_id =
             std::env::var("MQTT_CLIENT_ID").unwrap_or_else(|_| format!("sentient-core-{}-{}", room_id, Uuid::new_v4()));
+        let mqtt_username = std::env::var("MQTT_USERNAME").ok().filter(|v| !v.is_empty());
+        let mqtt_password = std::env::var("MQTT_PASSWORD").ok().filter(|v| !v.is_empty());
         let database_url =
             std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://sentient@localhost/sentient".to_string());
         let dry_run = std::env::var("DRY_RUN")
@@ -44,6 +48,8 @@ impl Config {
             mqtt_host,
             mqtt_port,
             mqtt_client_id,
+            mqtt_username,
+            mqtt_password,
             database_url,
             dry_run,
             tick_ms,
@@ -116,6 +122,9 @@ async fn connect_mqtt(config: &Config) -> anyhow::Result<MqttHandle> {
         config.mqtt_port,
     );
     mqtt_config.set_keep_alive(Duration::from_secs(5));
+    if let (Some(user), Some(pass)) = (&config.mqtt_username, &config.mqtt_password) {
+        mqtt_config.set_credentials(user, pass);
+    }
 
     let (client, mut eventloop) = rumqttc::AsyncClient::new(mqtt_config, 200);
 

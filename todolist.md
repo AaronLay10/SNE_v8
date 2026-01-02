@@ -78,6 +78,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 - [ ] Implement LWT + heartbeat expectations and server-side liveness evaluation
 - [ ] Implement authenticated commands (HMAC/signatures) and validation rules
 - [x] Require MQTT auth (shared credentials unique per room)
+- [x] Define HMAC command signing spec (canonical bytes)
 
 ## 7) Controller Firmware Contract + Reference Implementations
 
@@ -184,6 +185,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 
 - [ ] Enforce signed firmware requirement and verification policy
 - [@] Implement command authentication (HMAC) + rotation policy
+- [x] Add protocol helpers for HMAC sign/verify
 - [ ] Implement least-privilege network rules (VLAN + Docker networks)
 - [ ] Implement configuration drift detection + alerting
 

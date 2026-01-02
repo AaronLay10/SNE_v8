@@ -23,6 +23,8 @@ async fn main() -> anyhow::Result<()> {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(1883);
+    let mqtt_username = std::env::var("MQTT_USERNAME").ok().filter(|v| !v.is_empty());
+    let mqtt_password = std::env::var("MQTT_PASSWORD").ok().filter(|v| !v.is_empty());
     let mqtt_client_id = std::env::var("MQTT_CLIENT_ID")
         .unwrap_or_else(|_| format!("osc-bridge-{}-{}", room_id, uuid::Uuid::new_v4()));
 
@@ -38,7 +40,8 @@ async fn main() -> anyhow::Result<()> {
     let target: SocketAddr = format!("{}:{}", scs_host, scs_port).parse()?;
     let socket = UdpSocket::bind("0.0.0.0:0").await?;
 
-    let (mqtt, mut mqtt_eventloop) = connect_mqtt(mqtt_client_id, mqtt_host, mqtt_port).await?;
+    let (mqtt, mut mqtt_eventloop) =
+        connect_mqtt(mqtt_client_id, mqtt_host, mqtt_port, mqtt_username, mqtt_password).await?;
     let cue_topic = format!("room/{}/audio/cue", room_id);
     mqtt.subscribe(cue_topic.clone(), rumqttc::QoS::AtLeastOnce).await?;
 
@@ -74,9 +77,14 @@ async fn connect_mqtt(
     client_id: String,
     host: String,
     port: u16,
+    username: Option<String>,
+    password: Option<String>,
 ) -> anyhow::Result<(rumqttc::AsyncClient, rumqttc::EventLoop)> {
     let mut options = rumqttc::MqttOptions::new(client_id, host, port);
     options.set_keep_alive(Duration::from_secs(5));
+    if let (Some(user), Some(pass)) = (username.as_deref(), password.as_deref()) {
+        options.set_credentials(user, pass);
+    }
     Ok(rumqttc::AsyncClient::new(options, 200))
 }
 
