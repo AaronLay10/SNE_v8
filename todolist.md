@@ -182,7 +182,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 ## 17) Security Hardening
 
 - [ ] Enforce signed firmware requirement and verification policy
-- [ ] Implement command authentication (HMAC/signatures) + rotation policy
+- [@] Implement command authentication (HMAC) + rotation policy
 - [ ] Implement least-privilege network rules (VLAN + Docker networks)
 - [ ] Implement configuration drift detection + alerting
 

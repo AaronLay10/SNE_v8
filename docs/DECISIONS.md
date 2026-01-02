@@ -9,7 +9,6 @@ Record decisions that affect architecture, security posture, or operational prac
 - [ ] Secrets management: Vault vs sops+age (how we bootstrap keys + deploy)
 - [ ] Primary API service language/framework (Rust vs Node/TS vs Go)
 - [ ] UI stack (React/Next.js vs something else)
-- [ ] Controller command authentication primitive (HMAC vs Ed25519 signatures)
 - [ ] Database schema ownership (migrations per service vs single migration owner)
 
 ## Current Defaults (Scaffolding Only)
@@ -31,3 +30,7 @@ These defaults are used in the initial Compose templates and can be changed with
 - OSC bridge to external SCS for audio (in-core playback deferred)
 - VLAN per room + Docker network isolation per room
 - Warm standby per room with manual promotion
+
+## Locked Decisions (Implementation)
+
+- Controller command authentication: HMAC-SHA256 (simple local-LAN friendly; per-device keys)

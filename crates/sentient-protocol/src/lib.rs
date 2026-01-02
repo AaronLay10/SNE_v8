@@ -38,6 +38,18 @@ pub enum CommandAction {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CommandAuth {
+    /// Authentication scheme identifier.
+    /// v8 default: "HMAC-SHA256"
+    pub alg: String,
+    /// Key identifier (device-side), to support rotation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kid: Option<String>,
+    /// Hex-encoded MAC over the canonical signing bytes.
+    pub mac_hex: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CommandEnvelope {
     pub schema: String,
     pub room_id: String,
@@ -50,6 +62,9 @@ pub struct CommandEnvelope {
     #[serde(default)]
     pub parameters: serde_json::Value,
     pub safety_class: SafetyClass,
+    /// Optional at the protocol layer; required for real hardware deployments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth: Option<CommandAuth>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

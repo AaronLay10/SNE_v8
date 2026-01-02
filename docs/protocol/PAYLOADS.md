@@ -21,6 +21,16 @@ Minimum required fields:
 - `parameters` (JSON object; can be `{}`)
 - `safety_class` (`CRITICAL|NON_CRITICAL`)
 
+### Authentication (Controller Commands)
+
+For real hardware deployments, commands are authenticated with HMAC-SHA256 using a per-device key.
+
+- Field: `auth`
+- Type: `CommandAuth`
+- `alg`: `"HMAC-SHA256"`
+- `kid`: optional key ID for rotation
+- `mac_hex`: hex MAC over canonical signing bytes (canonicalization spec to be finalized)
+
 ## ACK / Completion
 
 Implemented as `CommandAck`.
