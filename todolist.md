@@ -15,7 +15,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 
 ## 1) R710 Host + Network Foundation
 
-- [ ] Install/validate Ubuntu Server 24.04 LTS baseline (headless)
+- [x] Install/validate Ubuntu Server 24.04 LTS baseline (headless)
 - [ ] Harden host SSH access (keys, fail2ban, firewall)
 - [ ] Configure time sync (server is NTP source) and verify drift limits
 - [ ] Configure UDM Pro VLANs (one VLAN per room) + firewall rules (room VLAN → room stack only)
@@ -26,6 +26,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 
 - [x] Install Docker + Docker Compose on the host
 - [@] Choose reverse proxy (Traefik vs NGINX) and standardize
+- [x] Bring up shared reverse proxy stack (Traefik scaffolding)
 - [ ] Implement TLS strategy (cert provisioning/renewal, internal vs public)
 - [ ] Define per-room Docker networks and shared admin network
 - [@] Define secrets strategy implementation (Docker secrets vs Vault) and bootstrap workflow
@@ -33,11 +34,13 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 ## 3) Per-Room Runtime Stack (Compose Template)
 
 - [x] Create a Compose template for a room stack:
-  - [ ] `sentient-core` (real-time scheduler)
-  - [ ] MQTT v5 broker (per room)
-  - [ ] TimescaleDB (per room)
-  - [ ] `osc-bridge` (Sentient → SCS)
+  - [x] `sentient-core` (real-time scheduler)
+  - [x] MQTT v5 broker (per room)
+  - [x] TimescaleDB (per room)
+  - [x] `osc-bridge` (Sentient → SCS)
 - [x] Ensure room stack can be restarted independently without impacting other rooms
+- [x] Support per-room bind IPs to avoid port conflicts (MQTT/DB) across rooms
+- [x] Validate a live room stack (room1) with MQTT auth + core heartbeat publishing
 - [ ] Define resource limits and placement guidance (CPU/mem) per room
 - [ ] Define health checks and startup order dependencies
 - [ ] Implement “arm/activate” operational modes (no execution vs live execution)
@@ -53,7 +56,9 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 ## 5) Sentient Core (Rust) — Real-Time Scheduler
 
 - [x] Create `sentient-core` project skeleton (Rust + Tokio)
-- [ ] Implement 1ms scheduler loop (monotonic time source)
+- [x] Implement 1ms scheduler loop (monotonic time source)
+- [x] Connect to MQTT + publish core heartbeat
+- [@] Subscribe to device topics and ingest publishes (heartbeat/ack/state/telemetry)
 - [ ] Implement directed-graph runtime:
   - [ ] Node model (cue/logic), edges, parallel paths
   - [ ] Preconditions (boolean + temporal clauses) continuous evaluation
@@ -72,8 +77,8 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 ## 6) MQTT Broker + Topic/Schema Contract
 
 - [ ] Choose broker implementation (e.g., Mosquitto/EMQX/etc.) and standardize config
-- [ ] Define canonical topic layout (room/device/{id}/cmd, ack, state, telemetry, heartbeat)
-- [ ] Define payload schemas (command, ack/complete, heartbeat, safety state) and version them
+- [x] Define canonical topic layout (room/device/{id}/cmd, ack, state, telemetry, heartbeat)
+- [x] Define payload schemas (command, ack/complete, heartbeat, safety state) and version them
 - [ ] Implement QoS strategy (QoS 1 commands) + retained messages policy
 - [ ] Implement LWT + heartbeat expectations and server-side liveness evaluation
 - [ ] Implement authenticated commands (HMAC/signatures) and validation rules
@@ -82,6 +87,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 
 ## 7) Controller Firmware Contract + Reference Implementations
 
+- [x] Import current controller firmware baseline into `hardware/`
 - [ ] Write “Firmware Contract” spec (authoritative) aligned with architecture doc
 - [ ] Teensy 4.1 reference firmware:
   - [ ] MQTT v5 client, heartbeat/LWT, ack/complete, watchdog safe idle
@@ -117,9 +123,10 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 
 ## 10) OSC Bridge (Sentient → SCS)
 
-- [ ] Define OSC cue contract (addresses, payloads, naming conventions)
+- [x] Define OSC cue payload contract (topic + JSON schema) for `osc-bridge`
 - [x] Bootstrap `osc-bridge` placeholder service
-- [ ] Implement UDP OSC send with application-level ack/retry
+- [x] Implement basic UDP OSC send (no ack/retry yet)
+- [ ] Implement application-level ack/retry (required)
 - [ ] Implement failure handling (alerting + retries + escalation)
 - [ ] Add test harness for OSC contract (simulated SCS endpoint)
 
