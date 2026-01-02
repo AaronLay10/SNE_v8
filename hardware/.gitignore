@@ -15,3 +15,5 @@ HEX_OUTPUT/
 
 # Local caches
 **/.cache/
+**/__pycache__/
+**/*.pyc

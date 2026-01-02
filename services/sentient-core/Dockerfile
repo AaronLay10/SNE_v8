@@ -2,6 +2,7 @@ FROM rust:1.84-bookworm AS build
 WORKDIR /workspace
 COPY Cargo.toml ./
 COPY crates ./crates
+COPY services/controller-sim ./services/controller-sim
 COPY services/sentient-core ./services/sentient-core
 COPY services/osc-bridge ./services/osc-bridge
 RUN cargo build -p sentient-core --release

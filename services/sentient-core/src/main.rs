@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::Context;
 use serde::Deserialize;
-use sentient_protocol::{SafetyState, SafetyStateKind, SCHEMA_VERSION};
+use sentient_protocol::{CommandAck, Heartbeat, SafetyState, SafetyStateKind, SCHEMA_VERSION};
 use tokio::{sync::mpsc, time::MissedTickBehavior};
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -79,6 +79,7 @@ async fn main() -> anyhow::Result<()> {
 
     let mut ticks: u64 = 0;
     let mut last_report = Instant::now();
+    let mut devices: std::collections::HashMap<String, DeviceStatus> = std::collections::HashMap::new();
 
     loop {
         tokio::select! {
@@ -95,6 +96,7 @@ async fn main() -> anyhow::Result<()> {
                         ticks,
                         uptime_ms = uptime.as_millis() as u64,
                         dry_run = config.dry_run,
+                        device_count = devices.len(),
                         "scheduler heartbeat"
                     );
                     last_report = Instant::now();
@@ -102,7 +104,7 @@ async fn main() -> anyhow::Result<()> {
             }
             maybe_msg = mqtt.incoming.recv() => {
                 if let Some(msg) = maybe_msg {
-                    handle_incoming_mqtt(&config.room_id, msg).await;
+                    handle_incoming_mqtt(&config.room_id, msg, &mut devices).await;
                 }
             }
             _ = tokio::signal::ctrl_c() => {
@@ -204,9 +206,89 @@ async fn subscribe_default_topics(client: &rumqttc::AsyncClient, room_id: &str) 
     Ok(())
 }
 
-async fn handle_incoming_mqtt(room_id: &str, msg: rumqttc::Publish) {
-    // Placeholder for: schema validation + state update + graph trigger evaluation.
-    if msg.topic.starts_with(&format!("room/{}/device/", room_id)) {
-        info!(topic = %msg.topic, bytes = msg.payload.len(), "mqtt device message");
+#[derive(Debug, Clone)]
+struct DeviceStatus {
+    last_heartbeat_at_unix_ms: Option<u64>,
+    last_ack_at_unix_ms: Option<u64>,
+}
+
+#[derive(Debug)]
+enum DeviceTopicKind {
+    Heartbeat,
+    Ack,
+    State,
+    Telemetry,
+}
+
+fn parse_device_topic(room_id: &str, topic: &str) -> Option<(String, DeviceTopicKind)> {
+    // room/{room_id}/device/{device_id}/{kind}
+    let prefix = format!("room/{}/device/", room_id);
+    let rest = topic.strip_prefix(&prefix)?;
+    let mut parts = rest.split('/');
+    let device_id = parts.next()?.to_string();
+    let kind = parts.next()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    let kind = match kind {
+        "heartbeat" => DeviceTopicKind::Heartbeat,
+        "ack" => DeviceTopicKind::Ack,
+        "state" => DeviceTopicKind::State,
+        "telemetry" => DeviceTopicKind::Telemetry,
+        _ => return None,
+    };
+    Some((device_id, kind))
+}
+
+async fn handle_incoming_mqtt(
+    room_id: &str,
+    msg: rumqttc::Publish,
+    devices: &mut std::collections::HashMap<String, DeviceStatus>,
+) {
+    let Some((device_id, kind)) = parse_device_topic(room_id, &msg.topic) else {
+        return;
+    };
+
+    let status = devices.entry(device_id.clone()).or_insert(DeviceStatus {
+        last_heartbeat_at_unix_ms: None,
+        last_ack_at_unix_ms: None,
+    });
+
+    match kind {
+        DeviceTopicKind::Heartbeat => {
+            match serde_json::from_slice::<Heartbeat>(&msg.payload) {
+                Ok(hb) => {
+                    status.last_heartbeat_at_unix_ms = Some(hb.observed_at_unix_ms);
+                    info!(
+                        device_id = %device_id,
+                        uptime_ms = hb.uptime_ms,
+                        fw = %hb.firmware_version,
+                        safety = ?hb.safety_state.kind,
+                        "device heartbeat"
+                    );
+                }
+                Err(err) => warn!(device_id = %device_id, error = %err, "invalid heartbeat payload"),
+            }
+        }
+        DeviceTopicKind::Ack => {
+            match serde_json::from_slice::<CommandAck>(&msg.payload) {
+                Ok(ack) => {
+                    status.last_ack_at_unix_ms = Some(ack.observed_at_unix_ms);
+                    info!(
+                        device_id = %device_id,
+                        status = ?ack.status,
+                        command_id = %ack.command_id,
+                        "device ack"
+                    );
+                }
+                Err(err) => warn!(device_id = %device_id, error = %err, "invalid ack payload"),
+            }
+        }
+        DeviceTopicKind::State => {
+            info!(device_id = %device_id, bytes = msg.payload.len(), "device state (raw)");
+        }
+        DeviceTopicKind::Telemetry => {
+            info!(device_id = %device_id, bytes = msg.payload.len(), "device telemetry (raw)");
+        }
     }
 }

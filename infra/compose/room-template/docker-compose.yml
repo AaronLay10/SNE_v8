@@ -66,6 +66,25 @@ services:
       - room-net
     restart: unless-stopped
 
+  controller-sim:
+    profiles: ["dev"]
+    build:
+      context: ../../../
+      dockerfile: services/controller-sim/Dockerfile
+    container_name: "${ROOM_ID}_controller_sim"
+    environment:
+      ROOM_ID: "${ROOM_ID}"
+      DEVICE_ID: "${SIM_DEVICE_ID:-sim1}"
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+      MQTT_USERNAME: "${MQTT_USERNAME}"
+      MQTT_PASSWORD: "${MQTT_PASSWORD}"
+    depends_on:
+      - mqtt
+    networks:
+      - room-net
+    restart: unless-stopped
+
 volumes:
   mosquitto-data:
   mosquitto-logs:

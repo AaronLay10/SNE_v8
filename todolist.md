@@ -41,6 +41,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 - [x] Ensure room stack can be restarted independently without impacting other rooms
 - [x] Support per-room bind IPs to avoid port conflicts (MQTT/DB) across rooms
 - [x] Validate a live room stack (room1) with MQTT auth + core heartbeat publishing
+- [x] Add dev-only controller simulator (MQTT heartbeat + ack loop)
 - [ ] Define resource limits and placement guidance (CPU/mem) per room
 - [ ] Define health checks and startup order dependencies
 - [ ] Implement “arm/activate” operational modes (no execution vs live execution)
@@ -58,7 +59,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 - [x] Create `sentient-core` project skeleton (Rust + Tokio)
 - [x] Implement 1ms scheduler loop (monotonic time source)
 - [x] Connect to MQTT + publish core heartbeat
-- [@] Subscribe to device topics and ingest publishes (heartbeat/ack/state/telemetry)
+- [x] Subscribe to device topics and ingest publishes (heartbeat/ack/state/telemetry)
 - [ ] Implement directed-graph runtime:
   - [ ] Node model (cue/logic), edges, parallel paths
   - [ ] Preconditions (boolean + temporal clauses) continuous evaluation
@@ -198,7 +199,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 
 ## 18) Testing + Validation
 
-- [ ] Build integration test rig (mock MQTT devices + simulated room)
+- [@] Build integration test rig (mock MQTT devices + simulated room)
 - [ ] Add soak/load testing plan (4 rooms concurrently)
 - [ ] Define latency measurement methodology (end-to-end command latency)
 - [ ] Add CI pipeline (build/test/lint) for Rust + web apps

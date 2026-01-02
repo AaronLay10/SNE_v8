@@ -1,0 +1,15 @@
+.git
+target
+**/target
+node_modules
+
+# Local/generated room stacks (secrets)
+infra/rooms
+
+# Hardware repo content is huge; keep it out of image builds
+hardware
+
+# Logs/artifacts
+**/*.log
+**/*.tmp
+
