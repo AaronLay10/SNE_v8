@@ -23,8 +23,19 @@ out="${room_dir}/mosquitto/passwd"
 if command -v mosquitto_passwd >/dev/null 2>&1; then
   mosquitto_passwd -b -c "${out}" "${MQTT_USERNAME}" "${MQTT_PASSWORD}"
 elif command -v docker >/dev/null 2>&1; then
+  set +e
   docker run --rm -i eclipse-mosquitto:2.0 sh -c \
     "mosquitto_passwd -b -c /tmp/pw \"${MQTT_USERNAME}\" \"${MQTT_PASSWORD}\" && cat /tmp/pw" > "${out}"
+  rc=$?
+  set -e
+  if [[ "${rc}" -ne 0 ]]; then
+    if command -v sg >/dev/null 2>&1; then
+      sg docker -c "docker run --rm -i eclipse-mosquitto:2.0 sh -c 'mosquitto_passwd -b -c /tmp/pw \"${MQTT_USERNAME}\" \"${MQTT_PASSWORD}\" && cat /tmp/pw' > '${out}'"
+    else
+      echo "Error: docker failed (try re-login so your docker group applies, or install mosquitto_passwd)" >&2
+      exit "${rc}"
+    fi
+  fi
 else
   echo "Error: need 'mosquitto_passwd' (preferred) or 'docker' to generate password file" >&2
   exit 1
@@ -32,4 +43,3 @@ fi
 
 chmod 600 "${out}"
 echo "Wrote ${out}"
-

@@ -2,6 +2,10 @@
 .env
 .env.*
 
+# Generated per-host/per-room stacks (do not commit)
+infra/rooms/*
+!infra/rooms/README.md
+
 # Logs
 *.log
 
@@ -20,4 +24,3 @@ target/
 
 # Docker
 **/.docker/
-

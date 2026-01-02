@@ -97,6 +97,14 @@ async fn handle_cue_message(socket: &UdpSocket, target: SocketAddr, payload: &[u
         }
     };
 
+    info!(
+        room_id = %cue.room_id,
+        cue_id = %cue.cue_id,
+        address = %cue.address,
+        args = cue.args.len(),
+        "sending OSC cue"
+    );
+
     let args: Vec<OscType> = cue
         .args
         .into_iter()
@@ -110,7 +118,7 @@ async fn handle_cue_message(socket: &UdpSocket, target: SocketAddr, payload: &[u
 
     let msg = OscMessage {
         addr: cue.address,
-        args: if args.is_empty() { None } else { Some(args) },
+        args,
     };
     let packet = OscPacket::Message(msg);
     let buf = match encoder::encode(&packet) {

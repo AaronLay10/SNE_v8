@@ -199,7 +199,7 @@ pub struct Heartbeat {
     pub observed_at_unix_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OscCue {
     pub schema: String,
     pub room_id: String,

@@ -1,6 +1,7 @@
 FROM rust:1.84-bookworm AS build
 WORKDIR /workspace
-COPY Cargo.toml rust-toolchain.toml ./
+COPY Cargo.toml ./
+COPY crates ./crates
 COPY services/sentient-core ./services/sentient-core
 COPY services/osc-bridge ./services/osc-bridge
 RUN cargo build -p sentient-core --release
@@ -11,4 +12,3 @@ COPY --from=build /workspace/target/release/sentient-core /usr/local/bin/sentien
 USER sentient
 ENV RUST_LOG=info
 ENTRYPOINT ["/usr/local/bin/sentient-core"]
-

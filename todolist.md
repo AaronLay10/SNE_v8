@@ -24,7 +24,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 
 ## 2) Container Platform + Reverse Proxy
 
-- [ ] Install Docker + Docker Compose plugin on the host
+- [x] Install Docker + Docker Compose on the host
 - [@] Choose reverse proxy (Traefik vs NGINX) and standardize
 - [ ] Implement TLS strategy (cert provisioning/renewal, internal vs public)
 - [ ] Define per-room Docker networks and shared admin network
