@@ -1,0 +1,17 @@
+# Build artifacts / generated outputs (do not commit)
+HEX_OUTPUT/
+**/build/
+**/*.hex
+**/*.elf
+**/*.eep
+**/*.sym
+**/*.lst
+**/*.log
+**/*.backup
+**/*.o
+**/*.a
+**/*.gch
+**/*.d
+
+# Local caches
+**/.cache/

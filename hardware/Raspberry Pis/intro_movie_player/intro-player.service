@@ -1,0 +1,21 @@
+[Unit]
+Description=Clockwork Intro Video Player
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/scripts
+ExecStart=/usr/bin/python3 /home/pi/scripts/intro-player.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Environment
+Environment="DISPLAY=:0"
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,27 @@
+Pin Assignments for the Power Controller - Upper Right
+
+Pin - Description
+9 - main_lighting_24v
+10 - main_lighting_12v
+11 - main_lighting_5v
+3 - gauges_12v_a
+4 - gauges_12v_b
+5 - gauges_5v
+6 - lever_boiler_5v
+7 - lever_boiler_12v
+8 - pilot_light_5v
+0 - kraken_controls_5v
+1 - fuse_12v
+2 - fuse_5v
+28 - syringe_24v
+27 - syringe_12v
+26 - syringe_5v
+25 - chemical_24v
+24 - chemical_12v
+12 - chemical_5v
+31 - crawl_space_blacklight
+30 - floor_audio_amp
+29 - kracken_radar_app
+33 - vault_24v
+34 - vault_12v
+32 - vault_5v

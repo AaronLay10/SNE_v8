@@ -1,0 +1,10 @@
+Pin Assignments for the Power Controller - Lower Left
+
+Pin - Description
+33 - lever_riddle_cube_24v
+34 - lever_riddle_cube_12v
+35 - lever_riddle_cube_5v
+36 - clock_24v
+37 - clock_12v
+38 - clock_5v
+

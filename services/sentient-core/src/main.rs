@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use anyhow::Context;
 use serde::Deserialize;
 use sentient_protocol::{SafetyState, SafetyStateKind, SCHEMA_VERSION};
-use tokio::time::MissedTickBehavior;
+use tokio::{sync::mpsc, time::MissedTickBehavior};
 use tracing::{info, warn};
 use uuid::Uuid;
 
@@ -70,7 +70,8 @@ async fn main() -> anyhow::Result<()> {
         anyhow::bail!("TICK_MS must be >= 1");
     }
 
-    let mqtt = connect_mqtt(&config).await?;
+    let mut mqtt = connect_mqtt(&config).await?;
+    subscribe_default_topics(&mqtt.client, &config.room_id).await?;
 
     let start = Instant::now();
     let mut tick = tokio::time::interval(Duration::from_millis(config.tick_ms));
@@ -99,6 +100,11 @@ async fn main() -> anyhow::Result<()> {
                     last_report = Instant::now();
                 }
             }
+            maybe_msg = mqtt.incoming.recv() => {
+                if let Some(msg) = maybe_msg {
+                    handle_incoming_mqtt(&config.room_id, msg).await;
+                }
+            }
             _ = tokio::signal::ctrl_c() => {
                 warn!("shutdown requested (ctrl-c)");
                 break;
@@ -111,8 +117,8 @@ async fn main() -> anyhow::Result<()> {
 }
 
 struct MqttHandle {
-    room_id: String,
     client: rumqttc::AsyncClient,
+    incoming: mpsc::Receiver<rumqttc::Publish>,
 }
 
 async fn connect_mqtt(config: &Config) -> anyhow::Result<MqttHandle> {
@@ -127,12 +133,17 @@ async fn connect_mqtt(config: &Config) -> anyhow::Result<MqttHandle> {
     }
 
     let (client, mut eventloop) = rumqttc::AsyncClient::new(mqtt_config, 200);
+    let (tx, rx) = mpsc::channel::<rumqttc::Publish>(1024);
 
-    let room_id = config.room_id.clone();
     tokio::spawn(async move {
         loop {
             match eventloop.poll().await {
-                Ok(_notification) => {}
+                Ok(rumqttc::Event::Incoming(rumqttc::Packet::Publish(p))) => {
+                    if tx.send(p).await.is_err() {
+                        break;
+                    }
+                }
+                Ok(_) => {}
                 Err(err) => {
                     warn!(error = %err, "mqtt eventloop error");
                     tokio::time::sleep(Duration::from_secs(1)).await;
@@ -142,8 +153,8 @@ async fn connect_mqtt(config: &Config) -> anyhow::Result<MqttHandle> {
     });
 
     Ok(MqttHandle {
-        room_id: room_id.clone(),
         client,
+        incoming: rx,
     })
 }
 
@@ -177,4 +188,25 @@ fn unix_ms_now() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or(Duration::ZERO)
         .as_millis() as u64
+}
+
+async fn subscribe_default_topics(client: &rumqttc::AsyncClient, room_id: &str) -> anyhow::Result<()> {
+    let topics = [
+        format!("room/{}/device/+/heartbeat", room_id),
+        format!("room/{}/device/+/ack", room_id),
+        format!("room/{}/device/+/state", room_id),
+        format!("room/{}/device/+/telemetry", room_id),
+    ];
+
+    for t in topics {
+        client.subscribe(t, rumqttc::QoS::AtLeastOnce).await?;
+    }
+    Ok(())
+}
+
+async fn handle_incoming_mqtt(room_id: &str, msg: rumqttc::Publish) {
+    // Placeholder for: schema validation + state update + graph trigger evaluation.
+    if msg.topic.starts_with(&format!("room/{}/device/", room_id)) {
+        info!(topic = %msg.topic, bytes = msg.payload.len(), "mqtt device message");
+    }
 }

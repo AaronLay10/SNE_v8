@@ -1,0 +1,21 @@
+=== V2 Controller Firmware Status ===
+All 8 controllers have compiled .hex files ready for upload:
+
+1. boiler_room_subpanel_v2 (1.2M) - Nov 15
+2. gauge_1_3_4_v2 (1.1M) - Nov 17 ✓ Fresh
+3. gauge_2_5_7_v2 (1.1M) - Nov 17 ✓ Fresh
+4. gauge_6_leds_v2 (1.2M) - Nov 17 ✓ Fresh
+5. keys_v2 (1.1M) - Nov 17 ✓ Fresh
+6. lever_boiler_v2 (1.1M) - Nov 17 ✓ Fresh
+7. main_lighting_v2 (1.2M) - Nov 17 (power controller)
+8. pilot_light_v2 (1.2M) - Nov 15
+
+All firmware configured with:
+- MQTT Broker: 192.168.2.3:1883 (mqtt.sentientengine.ai)
+- Credentials: paragon_devices / wF9Wwejkjdml3EA599e1fTOb9xyAixaduEMID7UfDDs=
+- Registration: Split protocol to sentient/system/register/*
+
+Next Steps:
+1. Upload each .hex file to corresponding Teensy 4.1 board using Teensy Loader
+2. Monitor serial output for registration messages
+3. Verify in database: SELECT controller_id, firmware_version FROM controllers;

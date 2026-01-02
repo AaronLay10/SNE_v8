@@ -1,0 +1,27 @@
+Pin Assignments for the Power Controller - Lower Right
+
+Pin - Description
+11 - gear_24v
+10 - gear_12v
+9 - gear_5v
+8 - floor_24v
+7 - floor_12v
+6 - floor_5v
+5 - riddle_rpi_5v
+4 - riddle_rpi_12v
+3 - riddle_5v
+1 - boiler_room_subpanel_24v
+0 - boiler_room_subpanel_12v
+2 - boiler_room_subpanel_5v
+26 - lab_room_subpanel_24v
+25 - lab_room_subpanel_12v
+24 - lab_room_subpanel_5v
+29 - study_room_subpanel_24v
+28 - study_room_subpanel_12v
+27 - study_room_subpanel_5v
+32 - gun_drawers_24v
+31 - gun_drawers_12v
+30 - gun_drawers_5v
+35 - empty_35
+34 - empty_34
+33 - keys_5v
