@@ -8,7 +8,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 
 ## 0) Project Setup
 
-- [ ] Create repo structure for services, shared libs, and docs
+- [x] Create repo structure for services, shared libs, and docs
 - [ ] Define coding standards (Rust/TS), branching strategy, and release/versioning conventions
 - [ ] Define “Definition of Done” for: safety, latency, observability, and deployment
 - [ ] Create staging environment plan (same topology as prod, smaller scale)
@@ -25,19 +25,19 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 ## 2) Container Platform + Reverse Proxy
 
 - [ ] Install Docker + Docker Compose plugin on the host
-- [ ] Choose reverse proxy (Traefik vs NGINX) and standardize
+- [@] Choose reverse proxy (Traefik vs NGINX) and standardize
 - [ ] Implement TLS strategy (cert provisioning/renewal, internal vs public)
 - [ ] Define per-room Docker networks and shared admin network
-- [ ] Define secrets strategy implementation (Docker secrets vs Vault) and bootstrap workflow
+- [@] Define secrets strategy implementation (Docker secrets vs Vault) and bootstrap workflow
 
 ## 3) Per-Room Runtime Stack (Compose Template)
 
-- [ ] Create a Compose template for a room stack:
+- [x] Create a Compose template for a room stack:
   - [ ] `sentient-core` (real-time scheduler)
   - [ ] MQTT v5 broker (per room)
   - [ ] TimescaleDB (per room)
   - [ ] `osc-bridge` (Sentient → SCS)
-- [ ] Ensure room stack can be restarted independently without impacting other rooms
+- [x] Ensure room stack can be restarted independently without impacting other rooms
 - [ ] Define resource limits and placement guidance (CPU/mem) per room
 - [ ] Define health checks and startup order dependencies
 - [ ] Implement “arm/activate” operational modes (no execution vs live execution)
@@ -52,7 +52,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 
 ## 5) Sentient Core (Rust) — Real-Time Scheduler
 
-- [ ] Create `sentient-core` project skeleton (Rust + Tokio)
+- [x] Create `sentient-core` project skeleton (Rust + Tokio)
 - [ ] Implement 1ms scheduler loop (monotonic time source)
 - [ ] Implement directed-graph runtime:
   - [ ] Node model (cue/logic), edges, parallel paths
@@ -116,6 +116,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 ## 10) OSC Bridge (Sentient → SCS)
 
 - [ ] Define OSC cue contract (addresses, payloads, naming conventions)
+- [x] Bootstrap `osc-bridge` placeholder service
 - [ ] Implement UDP OSC send with application-level ack/retry
 - [ ] Implement failure handling (alerting + retries + escalation)
 - [ ] Add test harness for OSC contract (simulated SCS endpoint)
@@ -197,4 +198,3 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 - [ ] Define versioning and release process per service
 - [ ] Implement deployment automation (compose updates, migrations, rollback)
 - [ ] Define “between games” staged rollout workflow (validate → arm → activate)
-

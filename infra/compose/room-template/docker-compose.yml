@@ -36,6 +36,8 @@ services:
       ROOM_ID: "${ROOM_ID}"
       SCS_HOST: "${SCS_HOST}"
       SCS_OSC_PORT: "${SCS_OSC_PORT}"
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
     networks:
       - room-net
     restart: unless-stopped
@@ -67,4 +69,3 @@ volumes:
 networks:
   room-net:
     name: "${ROOM_ID}_net"
-
