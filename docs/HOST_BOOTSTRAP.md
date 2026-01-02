@@ -11,7 +11,7 @@ This repo assumes the host can run Docker Compose and build Rust services into c
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y git ca-certificates curl
+sudo apt-get install -y git ca-certificates curl build-essential
 ```
 
 ## 2) Install Docker (Ubuntu packages)
@@ -35,3 +35,10 @@ git --version
 
 Optional: run `./scripts/check-prereqs.sh` for a quick summary.
 
+## One-shot bootstrap script
+
+If you prefer a single command, run:
+
+```bash
+sudo ./scripts/host-bootstrap-ubuntu24.sh
+```

@@ -35,7 +35,7 @@ Create a UTF-8 byte string by concatenating key/value pairs, separated by `\n`, 
 
 ### `canonical_parameters_json`
 
-- JSON-serialize the `parameters` object with stable key ordering and no extra whitespace.
+- JSON-serialize the `parameters` object with stable (sorted) key ordering and no extra whitespace.
 - If `parameters` is absent, treat it as `{}`.
 
 ## Verification Rules
@@ -48,4 +48,3 @@ Create a UTF-8 byte string by concatenating key/value pairs, separated by `\n`, 
 
 - Avoids relying on canonical JSON for the whole envelope.
 - Easy to implement on microcontrollers and easy to debug.
-

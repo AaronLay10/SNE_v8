@@ -68,23 +68,47 @@ pub struct CommandEnvelope {
     pub auth: Option<CommandAuth>,
 }
 
+fn command_action_str(a: CommandAction) -> &'static str {
+    match a {
+        CommandAction::Open => "OPEN",
+        CommandAction::Close => "CLOSE",
+        CommandAction::Move => "MOVE",
+        CommandAction::Set => "SET",
+    }
+}
+
+fn safety_class_str(s: SafetyClass) -> &'static str {
+    match s {
+        SafetyClass::Critical => "CRITICAL",
+        SafetyClass::NonCritical => "NON_CRITICAL",
+    }
+}
+
+fn canonicalize_json(value: &serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(map) => {
+            let mut keys: Vec<&String> = map.keys().collect();
+            keys.sort();
+            let mut out = serde_json::Map::new();
+            for k in keys {
+                let v = map.get(k).expect("key exists");
+                out.insert(k.clone(), canonicalize_json(v));
+            }
+            serde_json::Value::Object(out)
+        }
+        serde_json::Value::Array(items) => {
+            serde_json::Value::Array(items.iter().map(canonicalize_json).collect())
+        }
+        other => other.clone(),
+    }
+}
+
 pub fn canonical_parameters_json(parameters: &serde_json::Value) -> serde_json::Result<String> {
-    // serde_json preserves insertion order for maps (via indexmap in recent versions),
-    // but upstream producers may not. For v8 canonicalization we will require server-side
-    // production of stable parameter JSON (and controllers can treat parameters bytes as-is
-    // if they implement the same stable serialization).
-    //
-    // For now, we use serde_json's to_string; callers should ensure they build `parameters`
-    // deterministically on the server side.
-    serde_json::to_string(parameters)
+    let canon = canonicalize_json(parameters);
+    serde_json::to_string(&canon)
 }
 
 pub fn signing_string(cmd: &CommandEnvelope) -> serde_json::Result<String> {
-    let action = serde_json::to_string(&cmd.action)?; // "\"OPEN\"" etc.
-    let safety_class = serde_json::to_string(&cmd.safety_class)?;
-    let action = action.trim_matches('"');
-    let safety_class = safety_class.trim_matches('"');
-
     let params = canonical_parameters_json(&cmd.parameters)?;
 
     Ok(format!(
@@ -96,8 +120,8 @@ pub fn signing_string(cmd: &CommandEnvelope) -> serde_json::Result<String> {
         cmd.correlation_id,
         cmd.sequence,
         cmd.issued_at_unix_ms,
-        action,
-        safety_class,
+        command_action_str(cmd.action),
+        safety_class_str(cmd.safety_class),
         params
     ))
 }
