@@ -17,7 +17,7 @@ docker compose -f infra/compose/shared/docker-compose.yml up -d
 cd infra/rooms/room1
 ```
 
-Edit `.env` (especially `MQTT_USERNAME`, `MQTT_PASSWORD` (unique per room), `POSTGRES_PASSWORD`, `SCS_HOST`, `SCS_OSC_PORT`), then:
+Edit `.env` (especially `MQTT_BIND_IP`/`DB_BIND_IP` if you are binding per-VLAN IPs, plus `MQTT_USERNAME`, `MQTT_PASSWORD` (unique per room), `POSTGRES_PASSWORD`, `SCS_HOST`, `SCS_OSC_PORT`), then:
 
 ```bash
 ../../scripts/mosquitto-make-passwd.sh .env
@@ -28,3 +28,4 @@ docker compose --env-file .env up -d
 
 - Default templates use Mosquitto + TimescaleDB and build `sentient-core` / `osc-bridge` from this repo.
 - Network/VLAN firewalling is configured outside this repo (UDM Pro); see `todolist.md`.
+- For 4 concurrent rooms on one host without port conflicts, bind `MQTT_BIND_IP`/`DB_BIND_IP` to each room’s VLAN interface IP so each room can use `1883`/`5432` on its own address.

@@ -3,7 +3,7 @@ services:
     image: eclipse-mosquitto:2.0
     container_name: "${ROOM_ID}_mqtt"
     ports:
-      - "${MQTT_PORT:-1883}:1883"
+      - "${MQTT_BIND_IP:-0.0.0.0}:${MQTT_PORT:-1883}:1883"
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - ./mosquitto/passwd:/mosquitto/config/passwd
@@ -21,7 +21,7 @@ services:
       POSTGRES_USER: sentient
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_BIND_IP:-0.0.0.0}:${DB_PORT:-5432}:5432"
     volumes:
       - timescaledb-data:/var/lib/postgresql/data
     networks:
