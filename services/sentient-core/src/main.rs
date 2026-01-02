@@ -18,6 +18,7 @@ struct Config {
     database_url: String,
     dry_run: bool,
     tick_ms: u64,
+    device_offline_ms: u64,
 }
 
 impl Config {
@@ -42,6 +43,10 @@ impl Config {
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(1);
+        let device_offline_ms = std::env::var("DEVICE_OFFLINE_MS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(3000);
 
         Ok(Self {
             room_id,
@@ -53,6 +58,7 @@ impl Config {
             database_url,
             dry_run,
             tick_ms,
+            device_offline_ms,
         })
     }
 }
@@ -80,6 +86,7 @@ async fn main() -> anyhow::Result<()> {
     let mut ticks: u64 = 0;
     let mut last_report = Instant::now();
     let mut devices: std::collections::HashMap<String, DeviceStatus> = std::collections::HashMap::new();
+    let mut last_device_sweep = Instant::now();
 
     loop {
         tokio::select! {
@@ -87,6 +94,10 @@ async fn main() -> anyhow::Result<()> {
                 ticks = ticks.wrapping_add(1);
 
                 // Placeholder for: graph evaluation + safety gating + MQTT command dispatch + telemetry.
+                if last_device_sweep.elapsed() >= Duration::from_millis(500) {
+                    sweep_device_offline(&config, &mut devices);
+                    last_device_sweep = Instant::now();
+                }
 
                 if last_report.elapsed() >= Duration::from_secs(5) {
                     let uptime = start.elapsed();
@@ -210,6 +221,7 @@ async fn subscribe_default_topics(client: &rumqttc::AsyncClient, room_id: &str) 
 struct DeviceStatus {
     last_heartbeat_at_unix_ms: Option<u64>,
     last_ack_at_unix_ms: Option<u64>,
+    is_offline: bool,
 }
 
 #[derive(Debug)]
@@ -252,6 +264,7 @@ async fn handle_incoming_mqtt(
     let status = devices.entry(device_id.clone()).or_insert(DeviceStatus {
         last_heartbeat_at_unix_ms: None,
         last_ack_at_unix_ms: None,
+        is_offline: true,
     });
 
     match kind {
@@ -259,6 +272,10 @@ async fn handle_incoming_mqtt(
             match serde_json::from_slice::<Heartbeat>(&msg.payload) {
                 Ok(hb) => {
                     status.last_heartbeat_at_unix_ms = Some(hb.observed_at_unix_ms);
+                    if status.is_offline {
+                        status.is_offline = false;
+                        info!(device_id = %device_id, "device online");
+                    }
                     info!(
                         device_id = %device_id,
                         uptime_ms = hb.uptime_ms,
@@ -289,6 +306,25 @@ async fn handle_incoming_mqtt(
         }
         DeviceTopicKind::Telemetry => {
             info!(device_id = %device_id, bytes = msg.payload.len(), "device telemetry (raw)");
+        }
+    }
+}
+
+fn sweep_device_offline(config: &Config, devices: &mut std::collections::HashMap<String, DeviceStatus>) {
+    let now = unix_ms_now();
+    for (device_id, status) in devices.iter_mut() {
+        let Some(last) = status.last_heartbeat_at_unix_ms else {
+            continue;
+        };
+        let is_offline = now.saturating_sub(last) > config.device_offline_ms;
+        if is_offline && !status.is_offline {
+            status.is_offline = true;
+            warn!(
+                device_id = %device_id,
+                last_heartbeat_at_unix_ms = last,
+                device_offline_ms = config.device_offline_ms,
+                "device offline"
+            );
         }
     }
 }

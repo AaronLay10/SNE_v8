@@ -35,3 +35,4 @@ These defaults are used in the initial Compose templates and can be changed with
 
 - Controller command authentication: HMAC-SHA256 (simple local-LAN friendly; per-device keys)
 - MQTT client auth: shared username/password for all controllers (unique per room)
+- Device offline timeout: 3s (heartbeat-based)

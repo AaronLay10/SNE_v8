@@ -82,6 +82,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 - [x] Define payload schemas (command, ack/complete, heartbeat, safety state) and version them
 - [ ] Implement QoS strategy (QoS 1 commands) + retained messages policy
 - [ ] Implement LWT + heartbeat expectations and server-side liveness evaluation
+- [x] Define device offline timeout (3s)
 - [ ] Implement authenticated commands (HMAC/signatures) and validation rules
 - [x] Require MQTT auth (shared credentials unique per room)
 - [x] Define HMAC command signing spec (canonical bytes)

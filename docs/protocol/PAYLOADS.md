@@ -48,6 +48,7 @@ Implemented as `Heartbeat`.
 Notes:
 
 - Heartbeats are periodic and also paired with MQTT LWT for disconnect detection.
+- Default device offline timeout is 3s (configurable on the server).
 
 ## Audio Cue (Core → OSC Bridge → SCS)
 
