@@ -34,3 +34,4 @@ These defaults are used in the initial Compose templates and can be changed with
 ## Locked Decisions (Implementation)
 
 - Controller command authentication: HMAC-SHA256 (simple local-LAN friendly; per-device keys)
+- MQTT client auth: shared username/password for all controllers (per room)

@@ -30,5 +30,6 @@ perl -0pi -e "s/^ROOM_ID=.*/ROOM_ID=${room_id}/m" "${target_dir}/.env"
 echo "Created room stack at: ${target_dir}"
 echo "Next:"
 echo "  1) Edit ${target_dir}/.env"
-echo "  2) Run: docker compose --env-file .env up -d"
-
+echo "  2) Generate Mosquitto password file:"
+echo "       ${repo_root}/scripts/mosquitto-make-passwd.sh ${target_dir}/.env"
+echo "  3) Run: docker compose --env-file .env up -d"

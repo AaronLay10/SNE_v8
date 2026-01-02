@@ -20,6 +20,7 @@ cd infra/rooms/room1
 Edit `.env` (especially `POSTGRES_PASSWORD`, `SCS_HOST`, `SCS_OSC_PORT`), then:
 
 ```bash
+../../scripts/mosquitto-make-passwd.sh .env
 docker compose --env-file .env up -d
 ```
 
@@ -27,4 +28,3 @@ docker compose --env-file .env up -d
 
 - Default templates use Mosquitto + TimescaleDB and build `sentient-core` / `osc-bridge` from this repo.
 - Network/VLAN firewalling is configured outside this repo (UDM Pro); see `todolist.md`.
-
