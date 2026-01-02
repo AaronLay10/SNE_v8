@@ -1,0 +1,23 @@
+# Local env
+.env
+.env.*
+
+# Logs
+*.log
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Rust
+target/
+
+# Docker
+**/.docker/
+

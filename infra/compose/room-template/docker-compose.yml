@@ -1,0 +1,70 @@
+services:
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: "${ROOM_ID}_mqtt"
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-logs:/mosquitto/log
+    networks:
+      - room-net
+    restart: unless-stopped
+
+  db:
+    image: timescale/timescaledb:2.14.2-pg16
+    container_name: "${ROOM_ID}_db"
+    environment:
+      POSTGRES_DB: sentient
+      POSTGRES_USER: sentient
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+    networks:
+      - room-net
+    restart: unless-stopped
+
+  osc-bridge:
+    build:
+      context: ../../../
+      dockerfile: services/osc-bridge/Dockerfile
+    container_name: "${ROOM_ID}_osc_bridge"
+    environment:
+      ROOM_ID: "${ROOM_ID}"
+      SCS_HOST: "${SCS_HOST}"
+      SCS_OSC_PORT: "${SCS_OSC_PORT}"
+    networks:
+      - room-net
+    restart: unless-stopped
+
+  sentient-core:
+    build:
+      context: ../../../
+      dockerfile: services/sentient-core/Dockerfile
+    container_name: "${ROOM_ID}_core"
+    environment:
+      ROOM_ID: "${ROOM_ID}"
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+      DATABASE_URL: "postgres://sentient:${POSTGRES_PASSWORD}@db:5432/sentient"
+      DRY_RUN: "${DRY_RUN:-false}"
+    depends_on:
+      - mqtt
+      - db
+      - osc-bridge
+    networks:
+      - room-net
+    restart: unless-stopped
+
+volumes:
+  mosquitto-data:
+  mosquitto-logs:
+  timescaledb-data:
+
+networks:
+  room-net:
+    name: "${ROOM_ID}_net"
+
