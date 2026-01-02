@@ -1,6 +1,9 @@
 use std::time::Duration;
 
-use sentient_protocol::{AckStatus, CommandAck, CommandEnvelope, Heartbeat, SafetyState, SafetyStateKind, SCHEMA_VERSION};
+use sentient_protocol::{
+    AckStatus, CommandAck, CommandEnvelope, Heartbeat, Presence, PresenceStatus, SafetyState, SafetyStateKind,
+    SCHEMA_VERSION,
+};
 use tokio::time::MissedTickBehavior;
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -30,9 +33,25 @@ async fn main() -> anyhow::Result<()> {
         "controller-sim starting"
     );
 
+    let presence_topic = format!("room/{}/device/{}/presence", room_id, device_id);
+    let last_will = Presence {
+        schema: SCHEMA_VERSION.to_string(),
+        room_id: room_id.clone(),
+        device_id: device_id.clone(),
+        status: PresenceStatus::Offline,
+        observed_at_unix_ms: unix_ms_now(),
+    };
+    let last_will_payload = serde_json::to_vec(&last_will)?;
+
     let (client, mut eventloop) = {
         let mut options = rumqttc::MqttOptions::new(client_id, mqtt_host, mqtt_port);
         options.set_keep_alive(Duration::from_secs(5));
+        options.set_last_will(rumqttc::LastWill::new(
+            presence_topic.clone(),
+            last_will_payload,
+            rumqttc::QoS::AtLeastOnce,
+            true, // retained
+        ));
         if let (Some(user), Some(pass)) = (mqtt_username.as_deref(), mqtt_password.as_deref()) {
             options.set_credentials(user, pass);
         }
@@ -44,6 +63,23 @@ async fn main() -> anyhow::Result<()> {
 
     let hb_topic = format!("room/{}/device/{}/heartbeat", room_id, device_id);
     let ack_topic = format!("room/{}/device/{}/ack", room_id, device_id);
+
+    // Publish retained ONLINE presence on startup.
+    let online = Presence {
+        schema: SCHEMA_VERSION.to_string(),
+        room_id: room_id.clone(),
+        device_id: device_id.clone(),
+        status: PresenceStatus::Online,
+        observed_at_unix_ms: unix_ms_now(),
+    };
+    if let Ok(payload) = serde_json::to_vec(&online) {
+        if let Err(err) = client
+            .publish(&presence_topic, rumqttc::QoS::AtLeastOnce, true, payload)
+            .await
+        {
+            warn!(error = %err, "failed to publish ONLINE presence");
+        }
+    }
 
     info!(%cmd_topic, %hb_topic, %ack_topic, "subscribed and ready");
 
@@ -159,4 +195,3 @@ fn unix_ms_now() -> u64 {
         .unwrap_or(Duration::ZERO)
         .as_millis() as u64
 }
-

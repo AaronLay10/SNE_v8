@@ -9,9 +9,9 @@ This is the canonical topic layout for Sentient v8. Topics are per-room and per-
 - State (device → core): `room/{room_id}/device/{device_id}/state`
 - Telemetry (device → core): `room/{room_id}/device/{device_id}/telemetry`
 - Heartbeat (device → core): `room/{room_id}/device/{device_id}/heartbeat`
+- Presence (device/broker → core): `room/{room_id}/device/{device_id}/presence`
 
 ## Core Topics (optional)
 
 - Core health: `room/{room_id}/core/heartbeat`
 - Core faults: `room/{room_id}/core/fault`
-

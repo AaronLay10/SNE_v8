@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::Context;
 use serde::Deserialize;
-use sentient_protocol::{CommandAck, Heartbeat, SafetyState, SafetyStateKind, SCHEMA_VERSION};
+use sentient_protocol::{CommandAck, Heartbeat, Presence, PresenceStatus, SafetyState, SafetyStateKind, SCHEMA_VERSION};
 use tokio::{sync::mpsc, time::MissedTickBehavior};
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -209,6 +209,7 @@ async fn subscribe_default_topics(client: &rumqttc::AsyncClient, room_id: &str) 
         format!("room/{}/device/+/ack", room_id),
         format!("room/{}/device/+/state", room_id),
         format!("room/{}/device/+/telemetry", room_id),
+        format!("room/{}/device/+/presence", room_id),
     ];
 
     for t in topics {
@@ -230,6 +231,7 @@ enum DeviceTopicKind {
     Ack,
     State,
     Telemetry,
+    Presence,
 }
 
 fn parse_device_topic(room_id: &str, topic: &str) -> Option<(String, DeviceTopicKind)> {
@@ -247,6 +249,7 @@ fn parse_device_topic(room_id: &str, topic: &str) -> Option<(String, DeviceTopic
         "ack" => DeviceTopicKind::Ack,
         "state" => DeviceTopicKind::State,
         "telemetry" => DeviceTopicKind::Telemetry,
+        "presence" => DeviceTopicKind::Presence,
         _ => return None,
     };
     Some((device_id, kind))
@@ -299,6 +302,27 @@ async fn handle_incoming_mqtt(
                     );
                 }
                 Err(err) => warn!(device_id = %device_id, error = %err, "invalid ack payload"),
+            }
+        }
+        DeviceTopicKind::Presence => {
+            match serde_json::from_slice::<Presence>(&msg.payload) {
+                Ok(p) => {
+                    match p.status {
+                        PresenceStatus::Online => {
+                            if status.is_offline {
+                                status.is_offline = false;
+                                info!(device_id = %device_id, "device online (presence)");
+                            }
+                        }
+                        PresenceStatus::Offline => {
+                            if !status.is_offline {
+                                status.is_offline = true;
+                                warn!(device_id = %device_id, "device offline (presence)");
+                            }
+                        }
+                    }
+                }
+                Err(err) => warn!(device_id = %device_id, error = %err, "invalid presence payload"),
             }
         }
         DeviceTopicKind::State => {

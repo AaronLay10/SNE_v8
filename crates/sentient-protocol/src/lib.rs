@@ -199,6 +199,22 @@ pub struct Heartbeat {
     pub observed_at_unix_ms: u64,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PresenceStatus {
+    Online,
+    Offline,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Presence {
+    pub schema: String,
+    pub room_id: String,
+    pub device_id: String,
+    pub status: PresenceStatus,
+    pub observed_at_unix_ms: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OscCue {
     pub schema: String,

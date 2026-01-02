@@ -50,6 +50,17 @@ Notes:
 - Heartbeats are periodic and also paired with MQTT LWT for disconnect detection.
 - Default device offline timeout is 3s (configurable on the server).
 
+## Presence (ONLINE/OFFLINE)
+
+Topic: `room/{room_id}/device/{device_id}/presence`
+
+Payload: `Presence`
+
+Notes:
+
+- Devices (or simulators) publish a retained `ONLINE` presence on startup.
+- MQTT LWT publishes retained `OFFLINE` presence on unexpected disconnect.
+
 ## Audio Cue (Core → OSC Bridge → SCS)
 
 Published by the core (or API) for the per-room `osc-bridge` to deliver to SCS:
