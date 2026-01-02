@@ -77,6 +77,7 @@ Legend: `[ ]` todo, `[x]` done, `[@]` in progress, `[?]` needs decision.
 - [ ] Implement QoS strategy (QoS 1 commands) + retained messages policy
 - [ ] Implement LWT + heartbeat expectations and server-side liveness evaluation
 - [ ] Implement authenticated commands (HMAC/signatures) and validation rules
+- [x] Require MQTT auth (shared credentials unique per room)
 
 ## 7) Controller Firmware Contract + Reference Implementations
 

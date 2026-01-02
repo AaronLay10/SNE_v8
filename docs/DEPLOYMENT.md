@@ -17,7 +17,7 @@ docker compose -f infra/compose/shared/docker-compose.yml up -d
 cd infra/rooms/room1
 ```
 
-Edit `.env` (especially `POSTGRES_PASSWORD`, `SCS_HOST`, `SCS_OSC_PORT`), then:
+Edit `.env` (especially `MQTT_USERNAME`, `MQTT_PASSWORD` (unique per room), `POSTGRES_PASSWORD`, `SCS_HOST`, `SCS_OSC_PORT`), then:
 
 ```bash
 ../../scripts/mosquitto-make-passwd.sh .env
