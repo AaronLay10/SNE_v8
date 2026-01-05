@@ -1,0 +1,9 @@
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/traefik/certs/sentient.crt
+        keyFile: /etc/traefik/certs/sentient.key
+  certificates:
+    - certFile: /etc/traefik/certs/sentient.crt
+      keyFile: /etc/traefik/certs/sentient.key

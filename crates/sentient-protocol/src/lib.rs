@@ -3,6 +3,12 @@ use uuid::Uuid;
 
 pub const SCHEMA_VERSION: &str = "v8";
 pub const AUTH_ALG_HMAC_SHA256: &str = "HMAC-SHA256";
+pub const CORE_CONTROL_OP_PAUSE_DISPATCH: &str = "PAUSE_DISPATCH";
+pub const CORE_CONTROL_OP_RESUME_DISPATCH: &str = "RESUME_DISPATCH";
+pub const CORE_CONTROL_OP_RESET_SAFETY_LATCH: &str = "RESET_SAFETY_LATCH";
+pub const CORE_CONTROL_OP_START_GRAPH: &str = "START_GRAPH";
+pub const CORE_CONTROL_OP_STOP_GRAPH: &str = "STOP_GRAPH";
+pub const CORE_CONTROL_OP_RELOAD_GRAPH: &str = "RELOAD_GRAPH";
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -136,7 +142,11 @@ pub fn hmac_sha256_hex(key: &[u8], signing_bytes: &[u8]) -> String {
     hex::encode(out)
 }
 
-pub fn sign_command_hmac_sha256(cmd: &mut CommandEnvelope, key: &[u8], kid: Option<String>) -> serde_json::Result<()> {
+pub fn sign_command_hmac_sha256(
+    cmd: &mut CommandEnvelope,
+    key: &[u8],
+    kid: Option<String>,
+) -> serde_json::Result<()> {
     let s = signing_string(cmd)?;
     let mac_hex = hmac_sha256_hex(key, s.as_bytes());
     cmd.auth = Some(CommandAuth {
@@ -215,6 +225,129 @@ pub struct Presence {
     pub observed_at_unix_ms: u64,
 }
 
+/// Generic device state snapshot.
+///
+/// Each controller can publish a retained "last known" state for UIs/tools and
+/// for core restart recovery. The `state` object is device-specific.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeviceState {
+    pub schema: String,
+    pub room_id: String,
+    pub device_id: String,
+    pub safety_state: SafetyState,
+    #[serde(default)]
+    pub state: serde_json::Value,
+    pub observed_at_unix_ms: u64,
+}
+
+/// Request payload for tools/UIs to ask `sentient-core` to dispatch a device command.
+///
+/// This is an MQTT-only control plane intended for commissioning and early
+/// integration before the HTTP/WebSocket APIs exist.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CoreDispatchRequest {
+    pub schema: String,
+    pub room_id: String,
+    pub device_id: String,
+    pub action: CommandAction,
+    /// Device-specific parameters (JSON object preferred; may be `{}`).
+    #[serde(default)]
+    pub parameters: serde_json::Value,
+    #[serde(default = "default_safety_class_non_critical")]
+    pub safety_class: SafetyClass,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub correlation_id: Option<Uuid>,
+    /// Override retry count (defaults are core-configured).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retries: Option<u32>,
+    /// Override ack timeout (ms).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ack_timeout_ms: Option<u64>,
+    /// Override completion timeout (ms).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub complete_timeout_ms: Option<u64>,
+}
+
+/// Request payload for tools/UIs to control core runtime gates (pause/resume).
+///
+/// This is a commissioning/ops control plane intended to be replaced by the
+/// authenticated HTTP/WebSocket APIs later.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CoreControlRequest {
+    pub schema: String,
+    pub room_id: String,
+    /// Operation identifier (string) to keep the control plane flexible.
+    ///
+    /// Current ops:
+    /// - "PAUSE_DISPATCH"
+    /// - "RESUME_DISPATCH"
+    /// - "RESET_SAFETY_LATCH"
+    /// - "START_GRAPH"
+    /// - "STOP_GRAPH"
+    /// - "RELOAD_GRAPH"
+    pub op: String,
+    /// Optional parameters for future ops.
+    #[serde(default)]
+    pub parameters: serde_json::Value,
+    pub requested_at_unix_ms: u64,
+}
+
+/// Core fault/incident message intended for tools/UIs/notification systems.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CoreFault {
+    pub schema: String,
+    pub room_id: String,
+    /// Machine-readable identifier (e.g. "BROKER_OUTAGE").
+    pub kind: String,
+    /// Severity level: "INFO" | "WARN" | "CRITICAL"
+    pub severity: String,
+    pub message: String,
+    pub observed_at_unix_ms: u64,
+    #[serde(default)]
+    pub details: serde_json::Value,
+}
+
+/// Core status snapshot intended for tools/UIs/health dashboards.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CoreStatus {
+    pub schema: String,
+    pub room_id: String,
+    pub uptime_ms: u64,
+    pub tick_ms: u64,
+    pub dry_run: bool,
+    pub dispatch_enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dispatch_paused_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub broker_outage_since_unix_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub safety_latched_since_unix_ms: Option<u64>,
+    #[serde(default = "default_safety_state_safe")]
+    pub room_safety: SafetyState,
+    pub device_count: u64,
+    pub offline_device_count: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub graph_active_node: Option<String>,
+    /// Optional richer graph state for UIs/tools (v8).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub graph_active_nodes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub graph_version: Option<i64>,
+    pub observed_at_unix_ms: u64,
+}
+
+fn default_safety_state_safe() -> SafetyState {
+    SafetyState {
+        kind: SafetyStateKind::Safe,
+        reason_code: None,
+        latched: false,
+    }
+}
+
+fn default_safety_class_non_critical() -> SafetyClass {
+    SafetyClass::NonCritical
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OscCue {
     pub schema: String,
@@ -234,4 +367,11 @@ pub enum OscArg {
     Float(f32),
     String(String),
     Bool(bool),
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum OscAckStatus {
+    Sent,
+    Failed,
 }

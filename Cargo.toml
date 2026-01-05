@@ -4,5 +4,9 @@ members = [
   "crates/sentient-protocol",
   "services/controller-sim",
   "services/sentient-core",
+  "services/sentient-api",
   "services/osc-bridge",
+  "services/sentient-auth",
+  "services/sentient-notify",
+  "services/scs-sim",
 ]

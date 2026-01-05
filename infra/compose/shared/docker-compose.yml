@@ -1,21 +1,171 @@
 services:
   traefik:
     image: traefik:v3.2
+    restart: unless-stopped
     command:
       - --api.dashboard=true
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
       - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
+    labels:
+      - traefik.enable=true
+      # Traefik dashboard (internal service). Keep this on the admin LAN.
+      - traefik.http.routers.traefik.rule=Host(`${TRAEFIK_DASHBOARD_HOSTNAME}`)
+      - traefik.http.routers.traefik.entrypoints=websecure
+      - traefik.http.routers.traefik.tls=true
+      - traefik.http.routers.traefik.service=api@internal
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./traefik/certs:/etc/traefik/certs:ro
     networks:
       - sentient-admin
+
+  loki:
+    image: grafana/loki:3.0.0
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes:
+      - ./loki/config.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - sentient-admin
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./promtail/config.yml:/etc/promtail/config.yml:ro
+    networks:
+      - sentient-admin
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=sentient-admin
+      - traefik.http.routers.grafana.rule=Host(`${GRAFANA_HOSTNAME}`)
+      - traefik.http.routers.grafana.entrypoints=websecure
+      - traefik.http.routers.grafana.tls=true
+      - traefik.http.services.grafana.loadbalancer.server.port=3000
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - sentient-admin
+    restart: unless-stopped
+
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sentient_auth
+      POSTGRES_USER: sentient
+      POSTGRES_PASSWORD: "${AUTH_DB_PASSWORD:-changeme}"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+      - ./auth-db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - sentient-admin
+    restart: unless-stopped
+
+  sentient-auth:
+    build:
+      context: ../../../
+      dockerfile: services/sentient-auth/Dockerfile
+    environment:
+      DATABASE_URL: "postgres://sentient:${AUTH_DB_PASSWORD:-changeme}@auth-db:5432/sentient_auth"
+      AUTH_BIND_IP: "0.0.0.0"
+      AUTH_PORT: 8081
+      SENTIENT_JWT_SECRET: "${SENTIENT_JWT_SECRET:-}"
+      AUTH_BOOTSTRAP_TOKEN: "${AUTH_BOOTSTRAP_TOKEN:-}"
+      AUTH_MIN_PASSWORD_LEN: "${AUTH_MIN_PASSWORD_LEN:-12}"
+      AUTH_JWT_TTL_SECONDS: "${AUTH_JWT_TTL_SECONDS:-43200}"
+      AUTH_LOGIN_RATE_LIMIT_PER_WINDOW: "${AUTH_LOGIN_RATE_LIMIT_PER_WINDOW:-10}"
+      AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS: "${AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS:-60}"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=sentient-admin
+      - traefik.http.routers.auth.rule=Host(`${AUTH_HOSTNAME}`)
+      - traefik.http.routers.auth.entrypoints=websecure
+      - traefik.http.routers.auth.tls=true
+      - traefik.http.services.auth.loadbalancer.server.port=8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      - auth-db
+    networks:
+      - sentient-admin
+    restart: unless-stopped
+
+  tech-ui:
+    build:
+      context: ../../../apps/tech-ui
+      dockerfile: Dockerfile
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=sentient-admin
+      - traefik.http.routers.tech_ui.rule=Host(`${TECH_UI_HOSTNAME}`)
+      - traefik.http.routers.tech_ui.entrypoints=websecure
+      - traefik.http.routers.tech_ui.tls=true
+      - traefik.http.services.tech_ui.loadbalancer.server.port=80
+    networks:
+      - sentient-admin
+    restart: unless-stopped
+
+  creative-ui:
+    build:
+      context: ../../../apps/creative-ui
+      dockerfile: Dockerfile
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=sentient-admin
+      - traefik.http.routers.creative_ui.rule=Host(`${CREATIVE_UI_HOSTNAME}`)
+      - traefik.http.routers.creative_ui.entrypoints=websecure
+      - traefik.http.routers.creative_ui.tls=true
+      - traefik.http.services.creative_ui.loadbalancer.server.port=80
+    networks:
+      - sentient-admin
+    restart: unless-stopped
+
+  gm-ui:
+    build:
+      context: ../../../apps/gm-ui
+      dockerfile: Dockerfile
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=sentient-admin
+      - traefik.http.routers.gm_ui.rule=Host(`${GM_UI_HOSTNAME}`)
+      - traefik.http.routers.gm_ui.entrypoints=websecure
+      - traefik.http.routers.gm_ui.tls=true
+      - traefik.http.services.gm_ui.loadbalancer.server.port=80
+    networks:
+      - sentient-admin
+    restart: unless-stopped
 
 networks:
   sentient-admin:
     name: sentient-admin
 
+volumes:
+  grafana-data:
+  loki-data:
+  auth-db-data:

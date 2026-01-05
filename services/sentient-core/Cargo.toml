@@ -5,10 +5,12 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
+hex = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sentient-protocol = { path = "../../crates/sentient-protocol" }
 tokio = { version = "1.43", features = ["macros", "rt-multi-thread", "time", "signal", "sync"] }
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1.11", features = ["v4"] }

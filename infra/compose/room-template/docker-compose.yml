@@ -1,7 +1,7 @@
 services:
   mqtt:
     image: eclipse-mosquitto:2.0
-    container_name: "${ROOM_ID}_mqtt"
+    container_name: "${STACK_ID}_mqtt"
     ports:
       - "${MQTT_BIND_IP:-0.0.0.0}:${MQTT_PORT:-1883}:1883"
     volumes:
@@ -11,28 +11,36 @@ services:
       - mosquitto-logs:/mosquitto/log
     networks:
       - room-net
+      - admin-net
     restart: unless-stopped
 
   db:
     image: timescale/timescaledb:2.14.2-pg16
-    container_name: "${ROOM_ID}_db"
+    container_name: "${STACK_ID}_db"
     environment:
       POSTGRES_DB: sentient
       POSTGRES_USER: sentient
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentient -d sentient -h 127.0.0.1 -p 5432"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     ports:
       - "${DB_BIND_IP:-0.0.0.0}:${DB_PORT:-5432}:5432"
     volumes:
       - timescaledb-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
     networks:
       - room-net
+      - admin-net
     restart: unless-stopped
 
   osc-bridge:
     build:
       context: ../../../
       dockerfile: services/osc-bridge/Dockerfile
-    container_name: "${ROOM_ID}_osc_bridge"
+    container_name: "${STACK_ID}_osc_bridge"
     environment:
       ROOM_ID: "${ROOM_ID}"
       SCS_HOST: "${SCS_HOST}"
@@ -41,6 +49,22 @@ services:
       MQTT_PORT: 1883
       MQTT_USERNAME: "${MQTT_USERNAME}"
       MQTT_PASSWORD: "${MQTT_PASSWORD}"
+      OSC_RETRIES: "${OSC_RETRIES:-5}"
+      OSC_RETRY_BASE_MS: "${OSC_RETRY_BASE_MS:-200}"
+    networks:
+      - room-net
+      - admin-net
+    restart: unless-stopped
+
+  scs-sim:
+    profiles: ["dev"]
+    build:
+      context: ../../../
+      dockerfile: services/scs-sim/Dockerfile
+    container_name: "${STACK_ID}_scs_sim"
+    environment:
+      SCS_SIM_BIND_IP: "0.0.0.0"
+      SCS_SIM_OSC_PORT: "${SCS_OSC_PORT}"
     networks:
       - room-net
     restart: unless-stopped
@@ -49,7 +73,7 @@ services:
     build:
       context: ../../../
       dockerfile: services/sentient-core/Dockerfile
-    container_name: "${ROOM_ID}_core"
+    container_name: "${STACK_ID}_core"
     environment:
       ROOM_ID: "${ROOM_ID}"
       MQTT_HOST: mqtt
@@ -58,12 +82,92 @@ services:
       MQTT_PASSWORD: "${MQTT_PASSWORD}"
       DATABASE_URL: "postgres://sentient:${POSTGRES_PASSWORD}@db:5432/sentient"
       DRY_RUN: "${DRY_RUN:-false}"
+      # Map of device_id -> HMAC key (hex), used to sign commands.
+      # Example: {"sim1":"001122..."}
+      DEVICE_HMAC_KEYS_JSON: "${DEVICE_HMAC_KEYS_JSON:-}"
+      # Dev-only: if set, core will publish signed test commands to this device.
+      DEV_TEST_COMMAND_DEVICE_ID: "${DEV_TEST_COMMAND_DEVICE_ID:-}"
+      DEV_TEST_COMMAND_INTERVAL_MS: "${DEV_TEST_COMMAND_INTERVAL_MS:-10000}"
+      CORE_DISPATCH_ENABLED: "${CORE_DISPATCH_ENABLED:-true}"
+      # Optional: secure the core control-plane topic with a token.
+      CORE_CONTROL_TOKEN: "${CORE_CONTROL_TOKEN:-}"
+      CORE_CRITICAL_ARMED: "${CORE_CRITICAL_ARMED:-false}"
+      CORE_DISPATCH_RETRIES: "${CORE_DISPATCH_RETRIES:-2}"
+      CORE_DISPATCH_ACK_TIMEOUT_MS: "${CORE_DISPATCH_ACK_TIMEOUT_MS:-2000}"
+      CORE_DISPATCH_COMPLETE_TIMEOUT_MS: "${CORE_DISPATCH_COMPLETE_TIMEOUT_MS:-5000}"
     depends_on:
-      - mqtt
-      - db
-      - osc-bridge
+      mqtt:
+        condition: service_started
+      db:
+        condition: service_healthy
+      osc-bridge:
+        condition: service_started
     networks:
       - room-net
+      - admin-net
+    restart: unless-stopped
+
+  sentient-notify:
+    build:
+      context: ../../../
+      dockerfile: services/sentient-notify/Dockerfile
+    container_name: "${STACK_ID}_notify"
+    environment:
+      ROOM_ID: "${ROOM_ID}"
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+      MQTT_USERNAME: "${MQTT_USERNAME}"
+      MQTT_PASSWORD: "${MQTT_PASSWORD}"
+      # Optional: POST CoreFault JSON to a webhook URL (Slack/Discord/custom gateway).
+      NOTIFY_WEBHOOK_URL: "${NOTIFY_WEBHOOK_URL:-}"
+      NOTIFY_CORE_STATUS_TIMEOUT_MS: "${NOTIFY_CORE_STATUS_TIMEOUT_MS:-5000}"
+      NOTIFY_STARTUP_GRACE_MS: "${NOTIFY_STARTUP_GRACE_MS:-15000}"
+    depends_on:
+      mqtt:
+        condition: service_started
+    networks:
+      - room-net
+      - admin-net
+    restart: unless-stopped
+
+  sentient-api:
+    build:
+      context: ../../../
+      dockerfile: services/sentient-api/Dockerfile
+    container_name: "${STACK_ID}_api"
+    ports:
+      - "${API_BIND_IP:-0.0.0.0}:${API_PORT:-8080}:8080"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=sentient-admin
+      # Use STACK_ID in router/service names to avoid collisions across multiple room stacks.
+      - traefik.http.routers.${STACK_ID}-api.rule=Host(`${API_PUBLIC_HOSTNAME}`)
+      - traefik.http.routers.${STACK_ID}-api.entrypoints=websecure
+      - traefik.http.routers.${STACK_ID}-api.tls=true
+      - traefik.http.services.${STACK_ID}-api.loadbalancer.server.port=8080
+    environment:
+      ROOM_ID: "${ROOM_ID}"
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+      MQTT_USERNAME: "${MQTT_USERNAME}"
+      MQTT_PASSWORD: "${MQTT_PASSWORD}"
+      DATABASE_URL: "postgres://sentient:${POSTGRES_PASSWORD}@db:5432/sentient"
+      API_BIND_IP: "0.0.0.0"
+      API_PORT: 8080
+      # Optional: require Authorization: Bearer <token>
+      API_TOKEN: "${API_TOKEN:-}"
+      # Optional: accept JWTs issued by shared `sentient-auth`
+      SENTIENT_JWT_SECRET: "${SENTIENT_JWT_SECRET:-}"
+      # Optional: secure the core control-plane topic with a token.
+      CORE_CONTROL_TOKEN: "${CORE_CONTROL_TOKEN:-}"
+    depends_on:
+      mqtt:
+        condition: service_started
+      db:
+        condition: service_healthy
+    networks:
+      - room-net
+      - admin-net
     restart: unless-stopped
 
   controller-sim:
@@ -71,7 +175,7 @@ services:
     build:
       context: ../../../
       dockerfile: services/controller-sim/Dockerfile
-    container_name: "${ROOM_ID}_controller_sim"
+    container_name: "${STACK_ID}_controller_sim"
     environment:
       ROOM_ID: "${ROOM_ID}"
       DEVICE_ID: "${SIM_DEVICE_ID:-sim1}"
@@ -79,8 +183,18 @@ services:
       MQTT_PORT: 1883
       MQTT_USERNAME: "${MQTT_USERNAME}"
       MQTT_PASSWORD: "${MQTT_PASSWORD}"
+      ENFORCE_CMD_AUTH: "${ENFORCE_CMD_AUTH:-false}"
+      DEVICE_HMAC_KEY_HEX: "${SIM_DEVICE_HMAC_KEY_HEX:-}"
+      SIM_DROP_FIRST_ACCEPTED_ACK: "${SIM_DROP_FIRST_ACCEPTED_ACK:-false}"
+      # Safety simulation (for testing core latching/reset flows)
+      SIM_SAFETY_KIND: "${SIM_SAFETY_KIND:-SAFE}"
+      SIM_SAFETY_LATCHED: "${SIM_SAFETY_LATCHED:-false}"
+      SIM_SAFETY_REASON_CODE: "${SIM_SAFETY_REASON_CODE:-}"
+      # If set (>0), start SAFE then flip to SIM_SAFETY_KIND after N ms.
+      SIM_TRIGGER_FAULT_AFTER_MS: "${SIM_TRIGGER_FAULT_AFTER_MS:-0}"
     depends_on:
-      - mqtt
+      mqtt:
+        condition: service_started
     networks:
       - room-net
     restart: unless-stopped
@@ -92,4 +206,7 @@ volumes:
 
 networks:
   room-net:
-    name: "${ROOM_ID}_net"
+    name: "${STACK_ID}_net"
+  admin-net:
+    name: sentient-admin
+    external: true

@@ -16,16 +16,25 @@ apt-get install -y \
   build-essential
 
 # Container runtime (Ubuntu packages)
-apt-get install -y \
-  docker.io \
-  docker-compose-v2
+apt-get install -y docker.io
+
+# Prefer Docker Compose v2 integration (either package name depending on repo).
+# Ubuntu noble typically provides `docker-compose-v2`, while Docker CE repos provide `docker-compose-plugin`.
+apt-get install -y docker-compose-v2 || apt-get install -y docker-compose-plugin
+
+# Docker Buildx (Compose may use Bake/buildx for builds)
+apt-get install -y docker-buildx || true
 
 # Optional but useful for early validation
 apt-get install -y \
   mosquitto-clients
 
-usermod -aG docker techadmin || true
+if [[ -n "${SUDO_USER:-}" ]]; then
+  usermod -aG docker "${SUDO_USER}" || true
+else
+  usermod -aG docker techadmin || true
+fi
 
 echo
-echo "Installed: git, build-essential, docker.io, docker-compose-plugin, mosquitto-clients"
-echo "Note: re-login (or restart SSH) for docker group membership to apply."
+echo "Installed: git, build-essential, docker.io, docker compose v2, docker-buildx, mosquitto-clients"
+echo "Note: re-login (or restart SSH) for docker group membership to apply (or run docker commands via sudo)."

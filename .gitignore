@@ -1,5 +1,7 @@
 # Local env
 .env
+**/.env
+**/.env.local
 .env.*
 !.env.example
 !.env.sample
@@ -9,6 +11,10 @@
 infra/rooms/*
 !infra/rooms/README.md
 
+# Local secrets (do not commit)
+infra/secrets/*
+!infra/secrets/README.md
+
 # Logs
 *.log
 
@@ -16,6 +22,8 @@ infra/rooms/*
 .DS_Store
 .vscode/
 .idea/
+__pycache__/
+*.pyc
 
 # Node
 node_modules/
@@ -24,6 +32,21 @@ build/
 
 # Rust
 target/
+.env
+
+# TLS material (generated locally; never commit private keys)
+infra/compose/shared/traefik/certs/*.key
+infra/compose/shared/traefik/certs/*.crt
+!infra/compose/shared/traefik/certs/README.md
+
+# Local PKI workspace (generated locally; contains private keys)
+infra/pki/
+
+# Local DB volumes (generated locally)
+infra/compose/shared/auth-db/
+
+# Accidental output when running scripts from subfolders
+scripts/infra/
 
 # Docker
 **/.docker/

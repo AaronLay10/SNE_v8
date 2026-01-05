@@ -1,11 +1,16 @@
-FROM rust:1.84-bookworm AS build
+FROM rust:bookworm AS build
 WORKDIR /workspace
 COPY Cargo.toml ./
+COPY Cargo.lock ./
 COPY crates ./crates
 COPY services/controller-sim ./services/controller-sim
 COPY services/sentient-core ./services/sentient-core
+COPY services/sentient-api ./services/sentient-api
+COPY services/sentient-auth ./services/sentient-auth
 COPY services/osc-bridge ./services/osc-bridge
-RUN cargo build -p osc-bridge --release
+COPY services/sentient-notify ./services/sentient-notify
+COPY services/scs-sim ./services/scs-sim
+RUN cargo build -p osc-bridge --release --locked
 
 FROM debian:bookworm-slim
 RUN useradd -r -u 10002 -g nogroup oscbridge

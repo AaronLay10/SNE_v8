@@ -37,6 +37,7 @@ This document is the **canonical build reference** and incorporates *all archite
 
 - Ubuntu Server 24.04 LTS (headless)
 - SSH access only
+- **Container-first:** all Sentient v8 runtime services run in Docker containers (no host-level systemd units for Sentient services). The only required host dependency is the Docker engine itself.
 
 ---
 
@@ -56,13 +57,17 @@ Each room runs its own Docker Compose project:
 - mqtt-broker (MQTT v5)
 - timescaledb (state + telemetry)
 - osc-bridge (Sentient → SCS)
+- sentient-api (room-scoped HTTP API for tools/UIs; publishes MQTT control)
+- sentient-notify (room-scoped notifier; consumes MQTT faults and emits outbound alerts)
 
 ### 2.3 Shared Services
 
 - sentient-auth (RBAC)
-- sentient-notify (push notifications)
-- Reverse proxy (Traefik / NGINX)
+- Reverse proxy (Traefik; HTTPS termination)
+  - TLS: internal Root CA + wildcard certs for `*.sentientengine.ai` and `*.{room}.sentientengine.ai`
+  - HTTP → HTTPS redirect on the admin LAN
 - Grafana
+ - (future) Central notifications gateway (FCM/email/SMS), fed by per-room fault streams
 
 ---
 
@@ -73,6 +78,7 @@ Each room runs its own Docker Compose project:
 - One VLAN per room
 - Controllers may only access their room stack
 - No lateral room-to-room traffic
+- Per-room DNS (UDM Pro local records): controllers connect to `mqtt.<room>.sentientengine.ai`
 
 ### 3.2 Docker Networking
 
@@ -114,6 +120,9 @@ All controllers must implement:
 - QoS: 1 for commands
 - Addressing: topic-per-device
 - Broker: dedicated per room (Docker)
+- Controllers connect to the broker via a **per-room hostname**: `mqtt.<room>.sentientengine.ai` (example: `mqtt.clockwork.sentientengine.ai`)
+- Core control + observability topics exist per room (status/faults/device status/faults) for dashboards and notifications
+- **Safety posture:** if a room’s MQTT broker is unreachable, the room is considered in a major incident state; dispatch must pause and operators must recover manually (no automatic failover).
 
 ### 5.2 OSC (Audio)
 
@@ -225,6 +234,7 @@ All controllers must implement:
 
 - No completion → FAULT
 - Graph paths paused
+- Core emits retained fault events for ops (blocked dispatch, timeouts, rejected commands, device offline)
 
 ---
 
@@ -272,6 +282,8 @@ All controllers must implement:
 
 - Per room, maintain a warm standby stack capable of taking over if the primary room stack fails
 - Promotion is manual and operator-driven (no automatic failover), with safety-first validation before re-arming devices
+- Controllers connect to a per-room broker hostname (ex: `mqtt.clockwork.sentientengine.ai`); if the broker is down, the room must pause and require manual recovery/promotion
+- Preferred promotion mechanism: **manual DNS switch** on the UDM Pro (split-horizon local DNS) from primary → standby after safety verification
 - Standby is kept current via configuration/version synchronization and regularly exercised during restore testing
 
 ---
@@ -323,7 +335,7 @@ All controllers must implement:
 
 ### 17.2 Architecture
 
-- sentient-notify service
+- Per-room `sentient-notify` service (webhook-capable MVP)
 - Outbound internet from R710
 - Firebase Cloud Messaging (FCM)
 
@@ -426,41 +438,24 @@ graph LR
 - `room/{room_id}/device/{device_id}/state`
 - `room/{room_id}/device/{device_id}/telemetry`
 - `room/{room_id}/device/{device_id}/heartbeat`
+- `room/{room_id}/device/{device_id}/presence` (retained ONLINE + broker LWT OFFLINE)
 
-### B.2 Command Payload (Required Fields)
+Core topics (tools/UIs):
 
-```json
-{
-  "command_id": "uuid",
-  "sequence": 12345,
-  "issued_at": "timestamp",
-  "action": "OPEN|CLOSE|MOVE|SET",
-  "parameters": {},
-  "safety_class": "CRITICAL|NON_CRITICAL"
-}
-```
+- `room/{room_id}/core/status` (retained)
+- `room/{room_id}/core/fault` (retained)
+- `room/{room_id}/core/device/{device_id}/status` (retained)
+- `room/{room_id}/core/device/{device_id}/fault` (retained)
 
-### B.3 ACK / Completion Payload
+### B.2 Canonical Payloads
 
-```json
-{
-  "command_id": "uuid",
-  "status": "ACCEPTED|REJECTED|COMPLETED",
-  "reason_code": "OPTIONAL",
-  "safety_state": "SAFE|BLOCKED|FAULT|E_STOP"
-}
-```
+The canonical MQTT payload schemas are defined and versioned in:
 
-### B.4 Heartbeat Payload
+- `docs/protocol/PAYLOADS.md`
+- `docs/protocol/MQTT_TOPICS.md`
+- `docs/protocol/QOS_RETAIN.md`
 
-```json
-{
-  "uptime_ms": 12345678,
-  "firmware_version": "x.y.z",
-  "safety_state": "SAFE",
-  "last_error": null
-}
-```
+This architecture document treats those protocol docs as the source of truth.
 
 ---
 
@@ -493,6 +488,14 @@ graph TD
 4. Confirm heartbeats in dashboard
 5. Arm room (no execution)
 6. Start game
+
+Canonical runbooks (repo):
+
+- `docs/runbooks/ROOM_BRINGUP.md`
+- `docs/runbooks/WARM_STANDBY_PROMOTION.md`
+- `docs/runbooks/BROKER_OUTAGE.md`
+- `docs/runbooks/ROOM_API.md`
+- `docs/runbooks/AUTOSTART.md`
 
 ### D.2 Live Incident (FAULT)
 

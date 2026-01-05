@@ -26,6 +26,8 @@ if [[ ! -f "${target_dir}/.env" ]]; then
 fi
 
 perl -0pi -e "s/^ROOM_ID=.*/ROOM_ID=${room_id}/m" "${target_dir}/.env"
+perl -0pi -e "s/^STACK_ID=.*/STACK_ID=${room_id}/m" "${target_dir}/.env" || true
+perl -0pi -e "s|^MQTT_PUBLIC_HOSTNAME=.*|MQTT_PUBLIC_HOSTNAME=mqtt.${room_id}.sentientengine.ai|m" "${target_dir}/.env" || true
 
 echo "Created room stack at: ${target_dir}"
 echo "Next:"
